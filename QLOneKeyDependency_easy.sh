@@ -1,118 +1,141 @@
 #!/usr/bin/env bash
-#
+###
+# @Author: Ray zai7lou@outlook.com
+# @Date: 2023-02-11 23:13:19
+ # @LastEditors: Ray zai7lou@outlook.com
+ # @LastEditTime: 2023-02-12 20:51:19
+# @FilePath: \BiliBiliToolPro\docker\install.sh
+# @Description:
+###
+set -e
+set -u
+set -o pipefail
 
-# 青龙一键安装脚本 简洁版
-TIME() {
-[[ -z "$1" ]] && {
-	echo -ne " "
-} || {
-     case $1 in
-	r) export Color="\e[31;1m";;
-	g) export Color="\e[32;1m";;
-	b) export Color="\e[34;1m";;
-	y) export Color="\e[33;1m";;
-	z) export Color="\e[35;1m";;
-	l) export Color="\e[36;1m";;
-      esac
-	[[ $# -lt 2 ]] && echo -e "\e[36m\e[0m ${1}" || {
-		echo -e "\e[36m\e[0m ${Color}${2}\e[0m"
-	 }
-      }
+echo '  ____               ____    _   _____           _  '
+echo ' |  _ \ __ _ _   _  | __ ) _| |_|_   _|__   ___ | | '
+echo ' | |_) / _` | | | | |  _ \(_) (_) | |/ _ \ / _ \| | '
+echo ' |  _ < (_| | |_| | | |_) | | | | | | (_) | (_) | | '
+echo ' |_| \_\__,_|\__, | |____/|_|_|_| |_|\___/ \___/|_| '
+echo '             |___/                                  '
+
+githubProxy="https://gitp.mcxlmcn.us.kg/"
+
+infFileName="ray-inf.sh"
+[ -f $infFileName ] || {
+    infUrl="${githubProxy}https://raw.githubusercontent.com/RayWangQvQ/ray-sh/main/$infFileName"
+    (wget $infUrl) || (curl -sSL -f --create-dirs $infUrl) || {
+        echo "未找到 wget 或 curl 命令，请自行安装"
+        exit 1
+    }
 }
-echo
-echo
-echo
-TIME l "安装依赖..."
-echo
-TIME y "安装依赖需要时间，请耐心等待!"
-echo
-sleep 3
-echo
-echo
-npm config set registry https://registry.npmmirror.com
-cd /ql
-TIME l "安装依赖npm..."
-npm install -g npm
-cd /ql
-TIME l "安装依赖png-js..."
-npm install -g png-js
-cd /ql
-TIME l "安装依赖date-fns..."
-npm install -g date-fns
-cd /ql
-TIME l "安装依赖axios..."
-npm install -g axios
-cd /ql
-TIME l "安装依赖crypto-js..."
-npm install -g crypto-js
-cd /ql
-TIME l "安装依赖md5..."
-npm install -g md5
-cd /ql
-TIME l "安装依赖ts-md5..."
-npm install -g ts-md5
-cd /ql
-TIME l "安装依赖tslib..."
-npm install -g tslib
-cd /ql
-TIME l "安装依赖@types/node..."
-npm install -g @types/node
-cd /ql
-TIME l "安装依赖requests..."
-npm install -g requests
-cd /ql
-TIME l "安装依赖tough-cookie..."
-npm install -g tough-cookie
-cd /ql
-TIME l "安装依赖jsdom..."
-npm install -g jsdom
-cd /ql
-TIME l "安装依赖download..."
-npm install -g download
-cd /ql
-TIME l "安装依赖tunnel..."
-npm install -g tunnel
-cd /ql
-TIME l "安装依赖fs..."
-npm install -g fs
-cd /ql
-TIME l "安装依赖ws..."
-npm install -g ws
-cd /ql
-TIME l "安装依赖global-agent..."
-npm install -g global-agent
-cd /ql
-TIME l "安装依赖bootstrap..."
-npm install -g bootstrap
-TIME l "安装依赖node-rsa..."
-npm install -g node-rsa
-cd /ql
-TIME l "安装依赖form-data..."
-npm install -g form-data
-cd /ql
-TIME l "安装依赖requests..."
-pip3 install requests
-TIME l "lxml..."
-pip install lxml
-cd /ql
-TIME l "安装依赖PyExecJS..."
-pip3 install PyExecJS
-cd /ql
-TIME l "安装依赖ds..."
-pip3 install ds
-cd /ql
-TIME l "安装依赖moment..."
-npm install -g moment
-cd /ql
-TIME l "安装依赖js-base64..."
-npm install -g js-base64
-cd /ql
-TIME l "安装依赖user_agent..."
-pip install -U user_agent
-TIME l "安装依赖pyDes..."
-pip install pyDes
-cd /ql
-echo
-TIME g "依赖安装完毕..."
-echo
-exit 0
+. ray-inf.sh
+
+base_dir="/bili"
+remote_compose_url="${githubProxy}https://raw.githubusercontent.com/RayWangQvQ/BiliBiliToolPro/main/docker/sample/docker-compose.yml"
+remote_config_url="${githubProxy}https://raw.githubusercontent.com/RayWangQvQ/BiliBiliToolPro/main/src/Ray.BiliBiliTool.Console/appsettings.json"
+remote_ckJson_url="${githubProxy}https://raw.githubusercontent.com/RayWangQvQ/BiliBiliToolPro/main/docker/sample/cookies.json"
+docker_img_name="ghcr.io/raywangqvq/bilibili_tool_pro"
+
+createBaseDir() {
+    eval $invocation
+    mkdir -p $base_dir
+    cd $base_dir
+}
+
+installDocker() {
+    eval $invocation
+    if machine_has "docker"; then
+        say_info "已安装docker"
+        docker --version
+        return 0
+    else
+        say_warning "未安装docker，尝试安装"
+        download "https://get.docker.com" ./get-docker.sh
+        chmod +x ./get-docker.sh
+        get-docker.sh
+
+        if machine_has "docker"; then
+            say_info "已安装docker"
+            docker --version
+            return 0
+        else
+            say_err "docker 安装失败，请手动安装成功后再执行该脚本"
+            exit 1
+        fi
+    fi
+}
+
+downloadResources() {
+    eval $invocation
+    say_info "开始下载资源"
+
+    # docker compose
+    [ -f "docker-compose.yml" ] || download $remote_compose_url ./docker-compose.yml
+
+    # config
+    [ -f "appsettings.json" ] || download $remote_config_url ./appsettings.json
+
+    # ckJson
+    [ -f "cookies.json" ] || download $remote_ckJson_url ./cookies.json
+
+    ls -l
+}
+
+runContainer() {
+    eval $invocation
+
+    say_info "开始拉取镜像"
+    docker pull $docker_img_name
+
+    say_info "开始运行容器"
+    {
+        docker compose version && docker compose up -d
+    } || {
+        docker-compose version && docker-compose up -d
+    } || {
+        docker run -d --name="bili" \
+            -v $base_dir/Logs:/app/Logs \
+            -v $base_dir/appsettings.json:/app/appsettings.json \
+            -v $base_dir/cookies.json:/app/cookies.json \
+            $docker_img_name
+    } || {
+        say_err "创建容器失败，请检查"
+        exit 1
+    }
+}
+
+checkResult() {
+    eval $invocation
+    say_info "检测容器运行情况"
+
+    local containerName="bili"
+    docker ps --filter "name=$containerName"
+
+    containerId=$(docker ps -q --filter "name=^$containerName$")
+    if [ -n "$containerId" ]; then
+        docker logs bili
+        echo ""
+        echo "==============================================="
+        echo "Congratulations! 恭喜！"
+        echo "创建并运行$containerName容器成功。"
+        echo "第一次运行，请执行扫码登录："
+        echo "docker exec -it $containerName dotnet /app/Ray.BiliBiliTool.Console.dll --runTasks=Login --Security__RandomSleepMaxMin=0"
+        echo "Enjoy it~"
+        echo "==============================================="
+    else
+        echo ""
+        echo "请查看运行日志，确认容器是否正常运行，点击 Ctrl+c 退出日志追踪"
+        echo ""
+        docker logs -f $containerName
+    fi
+}
+
+main() {
+    installDocker
+    createBaseDir
+    downloadResources
+    runContainer
+    checkResult
+}
+
+main
